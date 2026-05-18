@@ -1,105 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Football Shoot Power</title>
+  <title>Smart AI Football</title>
   <style>
     body { margin:0; background:#0a7a2f; overflow:hidden; }
     canvas { display:block; margin:auto; background:#0a7a2f; }
-
-    #shootBtn{
-      position:absolute;
-      bottom:40px;
-      right:40px;
-      width:90px;
-      height:90px;
-      border-radius:50%;
-      background:red;
-      color:white;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:bold;
-      user-select:none;
-    }
-
-    #powerBar{
-      position:absolute;
-      bottom:140px;
-      right:40px;
-      width:20px;
-      height:120px;
-      border:2px solid white;
-    }
-
-    #fill{
-      width:100%;
-      height:0%;
-      background:yellow;
-      position:absolute;
-      bottom:0;
-    }
   </style>
 </head>
 <body>
 
 <canvas id="game" width="400" height="600"></canvas>
 
-<div id="powerBar"><div id="fill"></div></div>
-<div id="shootBtn">SHOOT</div>
-
 <script>
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
 
+// PLAYER
 let player = { x:200, y:500, r:12 };
-let ball = { x:220, y:500, r:8, vx:0, vy:0 };
-let goal = { x:150, y:10, w:100, h:20 };
 
+// AI (smart)
+let ai = { x:200, y:120, r:12, speed:2.2 };
+
+// BALL
+let ball = { x:220, y:500, r:8, vx:0, vy:0 };
+
+let goal = { x:150, y:10, w:100, h:20 };
 let score = 0;
 
-// power system
-let power = 0;
-let charging = false;
-let direction = { x:0, y:-1 };
+let input = { x:0, y:0 };
 
-// touch control for direction (basit swipe)
-let startX, startY;
-
-document.addEventListener("touchstart",(e)=>{
-  startX = e.touches[0].clientX;
-  startY = e.touches[0].clientY;
+// controls
+document.addEventListener("keydown",(e)=>{
+  if(e.key==="ArrowRight") input.x=1;
+  if(e.key==="ArrowLeft") input.x=-1;
+  if(e.key==="ArrowUp") input.y=-1;
+  if(e.key==="ArrowDown") input.y=1;
 });
 
-document.addEventListener("touchend",(e)=>{
-  let dx = e.changedTouches[0].clientX - startX;
-  let dy = e.changedTouches[0].clientY - startY;
-
-  let len = Math.sqrt(dx*dx + dy*dy);
-  if(len > 10){
-    direction.x = dx / len;
-    direction.y = dy / len;
-  }
+document.addEventListener("keyup",()=>{
+  input.x=0;
+  input.y=0;
 });
 
-// shoot button hold
-let btn = document.getElementById("shootBtn");
-
-btn.addEventListener("touchstart", ()=>{
-  charging = true;
-});
-
-btn.addEventListener("touchend", ()=>{
-  charging = false;
-
-  if(distance(ball, player) < 30){
-    ball.vx += direction.x * power * 0.3;
-    ball.vy += direction.y * power * 0.3;
-  }
-
-  power = 0;
-});
-
-function distance(a,b){
+// distance helper
+function dist(a,b){
   let dx = a.x - b.x;
   let dy = a.y - b.y;
   return Math.sqrt(dx*dx + dy*dy);
@@ -107,32 +51,59 @@ function distance(a,b){
 
 function update(){
 
-  // player follow ball lightly
-  let dx = ball.x - player.x;
-  let dy = ball.y - player.y;
+  // PLAYER MOVE
+  player.x += input.x * 4;
+  player.y += input.y * 4;
+
+  // SMART AI LOGIC
+  let targetX, targetY;
+
+  // Eğer top yukarıdaysa (atak yap)
+  if(ball.y < 300){
+    targetX = ball.x;
+    targetY = ball.y;
+  }
+  // yoksa kendi yarı sahasını koru
+  else {
+    targetX = 200;
+    targetY = 120;
+  }
+
+  let dx = targetX - ai.x;
+  let dy = targetY - ai.y;
   let d = Math.sqrt(dx*dx + dy*dy);
 
-  if(d < 20){
-    ball.vx += dx * 0.1;
-    ball.vy += dy * 0.1;
-  }
+  ai.x += (dx/d) * ai.speed;
+  ai.y += (dy/d) * ai.speed;
 
-  // power charging
-  if(charging){
-    power += 2;
-    if(power > 100) power = 100;
-  }
-
-  document.getElementById("fill").style.height = power + "%";
-
-  // ball physics
+  // BALL PHYSICS
   ball.x += ball.vx;
   ball.y += ball.vy;
 
   ball.vx *= 0.97;
   ball.vy *= 0.97;
 
-  // goal
+  // PLAYER TOUCH
+  let pdx = ball.x - player.x;
+  let pdy = ball.y - player.y;
+  let pd = Math.sqrt(pdx*pdx + pdy*pdy);
+
+  if(pd < 20){
+    ball.vx += pdx * 0.1;
+    ball.vy += pdy * 0.1;
+  }
+
+  // AI TOUCH (savunma + müdahale)
+  let adx = ball.x - ai.x;
+  let ady = ball.y - ai.y;
+  let ad = Math.sqrt(adx*adx + ady*ady);
+
+  if(ad < 20){
+    ball.vx += adx * 0.08;
+    ball.vy += ady * 0.08;
+  }
+
+  // GOAL
   if(ball.y < goal.y + goal.h &&
      ball.x > goal.x &&
      ball.x < goal.x + goal.w){
@@ -148,32 +119,47 @@ function reset(){
   player.x = 200;
   player.y = 500;
 
+  ai.x = 200;
+  ai.y = 120;
+
   ball.x = 220;
-  ball.y = 500;
+  ball.y = 400;
 
   ball.vx = 0;
   ball.vy = 0;
 }
 
 function draw(){
+
   ctx.clearRect(0,0,400,600);
 
+  // field
   ctx.strokeStyle="white";
   ctx.strokeRect(10,10,380,580);
 
+  // goal
   ctx.fillStyle="white";
   ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
 
+  // AI
+  ctx.fillStyle="red";
+  ctx.beginPath();
+  ctx.arc(ai.x,ai.y,ai.r,0,Math.PI*2);
+  ctx.fill();
+
+  // PLAYER
   ctx.fillStyle="blue";
   ctx.beginPath();
   ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
   ctx.fill();
 
+  // BALL
   ctx.fillStyle="white";
   ctx.beginPath();
   ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
   ctx.fill();
 
+  // SCORE
   ctx.fillStyle="white";
   ctx.font="16px Arial";
   ctx.fillText("Score: "+score,10,590);
