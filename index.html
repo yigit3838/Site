@@ -1,45 +1,100 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Football Game</title>
+  <title>Football Mobile</title>
   <style>
-    body { margin:0; background:#0a7a2f; }
+    body { margin:0; background:#0a7a2f; overflow:hidden; }
+
     canvas { display:block; margin:auto; background:#0a7a2f; }
+
+    /* joystick */
+    #joystick {
+      position:absolute;
+      bottom:40px;
+      left:40px;
+      width:120px;
+      height:120px;
+      background:rgba(255,255,255,0.2);
+      border-radius:50%;
+    }
+
+    #stick {
+      position:absolute;
+      width:50px;
+      height:50px;
+      background:white;
+      border-radius:50%;
+      top:35px;
+      left:35px;
+    }
   </style>
 </head>
 <body>
 
 <canvas id="game" width="400" height="600"></canvas>
 
+<div id="joystick">
+  <div id="stick"></div>
+</div>
+
 <script>
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
 
-// PLAYER
-let player = { x:200, y:500, r:12, speed:4 };
-
-// BALL
+let player = { x:200, y:500, r:12 };
 let ball = { x:220, y:500, r:8, vx:0, vy:0 };
 
-// GOAL
 let goal = { x:150, y:10, w:100, h:20 };
 
 let score = 0;
 
-let keys = {};
+// joystick
+let joystick = document.getElementById("joystick");
+let stick = document.getElementById("stick");
 
-document.addEventListener("keydown",(e)=>keys[e.key]=true);
-document.addEventListener("keyup",(e)=>keys[e.key]=false);
+let center = { x:60, y:60 };
+let input = { x:0, y:0 };
+
+let active = false;
+
+joystick.addEventListener("touchstart", e => active = true);
+joystick.addEventListener("touchend", e => {
+  active = false;
+  input.x = 0;
+  input.y = 0;
+  stick.style.left = "35px";
+  stick.style.top = "35px";
+});
+
+joystick.addEventListener("touchmove", e => {
+  let t = e.touches[0];
+  let rect = joystick.getBoundingClientRect();
+
+  let dx = t.clientX - rect.left - center.x;
+  let dy = t.clientY - rect.top - center.y;
+
+  let dist = Math.sqrt(dx*dx + dy*dy);
+  let max = 40;
+
+  if(dist > max){
+    dx = dx / dist * max;
+    dy = dy / dist * max;
+  }
+
+  input.x = dx / max;
+  input.y = dy / max;
+
+  stick.style.left = (center.x + dx - 25) + "px";
+  stick.style.top = (center.y + dy - 25) + "px";
+});
 
 function update(){
 
-  // PLAYER MOVE
-  if(keys["ArrowRight"]) player.x += player.speed;
-  if(keys["ArrowLeft"]) player.x -= player.speed;
-  if(keys["ArrowUp"]) player.y -= player.speed;
-  if(keys["ArrowDown"]) player.y += player.speed;
+  // PLAYER MOVE (joystick)
+  player.x += input.x * 4;
+  player.y += input.y * 4;
 
-  // BALL FOLLOW (topa dokunma hissi)
+  // ball follow
   let dx = ball.x - player.x;
   let dy = ball.y - player.y;
   let dist = Math.sqrt(dx*dx + dy*dy);
@@ -49,14 +104,13 @@ function update(){
     ball.vy += dy * 0.1;
   }
 
-  // BALL PHYSICS
   ball.x += ball.vx;
   ball.y += ball.vy;
 
   ball.vx *= 0.97;
   ball.vy *= 0.97;
 
-  // GOAL
+  // goal
   if(ball.y < goal.y + goal.h &&
      ball.x > goal.x &&
      ball.x < goal.x + goal.w){
@@ -78,33 +132,27 @@ function reset(){
 }
 
 function draw(){
-
   ctx.clearRect(0,0,400,600);
 
-  // saha
   ctx.strokeStyle="white";
   ctx.strokeRect(10,10,380,580);
 
-  // kale
   ctx.fillStyle="white";
   ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
 
-  // player
+  ctx.fillStyle="blue";
   ctx.beginPath();
   ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
-  ctx.fillStyle="blue";
   ctx.fill();
 
-  // ball
+  ctx.fillStyle="white";
   ctx.beginPath();
   ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
-  ctx.fillStyle="white";
   ctx.fill();
 
-  // score
   ctx.fillStyle="white";
   ctx.font="20px Arial";
-  ctx.fillText("Score: "+score,10,590);
+  ctx.fillText("Score: " + score, 10, 590);
 }
 
 update();
