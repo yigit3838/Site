@@ -1,142 +1,119 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Mobile Football</title>
+  <title>Football AI Difficulty</title>
   <style>
     body { margin:0; background:#0a7a2f; overflow:hidden; }
-
     canvas { display:block; margin:auto; background:#0a7a2f; }
 
-    #shootBtn{
+    #ui{
       position:absolute;
-      bottom:40px;
-      right:40px;
-      width:90px;
-      height:90px;
-      border-radius:50%;
-      background:red;
+      top:10px;
+      left:10px;
       color:white;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:bold;
-      user-select:none;
+      font-family:Arial;
     }
 
-    #joystick{
-      position:absolute;
-      bottom:40px;
-      left:40px;
-      width:120px;
-      height:120px;
-      background:rgba(255,255,255,0.2);
-      border-radius:50%;
-    }
-
-    #stick{
-      position:absolute;
-      width:50px;
-      height:50px;
-      background:white;
-      border-radius:50%;
-      top:35px;
-      left:35px;
+    button{
+      margin:3px;
+      padding:8px;
     }
   </style>
 </head>
 <body>
 
-<canvas id="game" width="400" height="600"></canvas>
+<div id="ui">
+  <button onclick="setDifficulty(1)">Kolay</button>
+  <button onclick="setDifficulty(2)">Orta</button>
+  <button onclick="setDifficulty(3)">Zor</button>
+</div>
 
-<div id="joystick"><div id="stick"></div></div>
-<div id="shootBtn">SHOOT</div>
+<canvas id="game" width="400" height="600"></canvas>
 
 <script>
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
 
+// PLAYER
 let player = { x:200, y:500, r:12 };
-let ball = { x:220, y:500, r:8, vx:0, vy:0 };
+
+// AI
+let ai = { x:200, y:100, r:12, speed:1.5 };
+
+// BALL
+let ball = { x:220, y:300, r:8, vx:0, vy:0 };
 
 let goal = { x:150, y:10, w:100, h:20 };
-
 let score = 0;
 
-// joystick
-let joystick = document.getElementById("joystick");
-let stick = document.getElementById("stick");
+let difficulty = 1;
 
-let center = { x:60, y:60 };
+function setDifficulty(level){
+  difficulty = level;
+
+  if(level === 1) ai.speed = 1.5;
+  if(level === 2) ai.speed = 2.5;
+  if(level === 3) ai.speed = 4;
+}
+
+// input
 let input = { x:0, y:0 };
 
-// touch joystick
-joystick.addEventListener("touchstart", ()=>{});
-joystick.addEventListener("touchend", ()=>{
+document.addEventListener("keydown",(e)=>{
+  if(e.key==="ArrowRight") input.x = 1;
+  if(e.key==="ArrowLeft") input.x = -1;
+  if(e.key==="ArrowUp") input.y = -1;
+  if(e.key==="ArrowDown") input.y = 1;
+});
+
+document.addEventListener("keyup",()=>{
   input.x = 0;
   input.y = 0;
-  stick.style.left="35px";
-  stick.style.top="35px";
-});
-
-joystick.addEventListener("touchmove", (e)=>{
-  let t = e.touches[0];
-  let rect = joystick.getBoundingClientRect();
-
-  let dx = t.clientX - rect.left - center.x;
-  let dy = t.clientY - rect.top - center.y;
-
-  let dist = Math.sqrt(dx*dx + dy*dy);
-  let max = 40;
-
-  if(dist > max){
-    dx = dx/dist * max;
-    dy = dy/dist * max;
-  }
-
-  input.x = dx/max;
-  input.y = dy/max;
-
-  stick.style.left = (center.x + dx - 25) + "px";
-  stick.style.top = (center.y + dy - 25) + "px";
-});
-
-// SHOOT BUTTON
-document.getElementById("shootBtn").addEventListener("touchstart", ()=>{
-  let dx = ball.x - player.x;
-  let dy = ball.y - player.y;
-
-  let dist = Math.sqrt(dx*dx + dy*dy);
-
-  if(dist < 30){
-    ball.vx += dx * 0.3;
-    ball.vy += dy * 0.3;
-  }
 });
 
 function update(){
 
-  // player move
+  // PLAYER
   player.x += input.x * 4;
   player.y += input.y * 4;
 
-  // ball follow
-  let dx = ball.x - player.x;
-  let dy = ball.y - player.y;
-  let dist = Math.sqrt(dx*dx + dy*dy);
+  // AI (zorluğa göre hız)
+  let dx = ball.x - ai.x;
+  let dy = ball.y - ai.y;
+  let d = Math.sqrt(dx*dx + dy*dy);
 
-  if(dist < 20){
-    ball.vx += dx * 0.1;
-    ball.vy += dy * 0.1;
-  }
+  ai.x += (dx/d) * ai.speed;
+  ai.y += (dy/d) * ai.speed;
 
-  // physics
+  // BALL
   ball.x += ball.vx;
   ball.y += ball.vy;
 
   ball.vx *= 0.97;
   ball.vy *= 0.97;
 
-  // goal
+  // PLAYER TOUCH
+  let pdx = ball.x - player.x;
+  let pdy = ball.y - player.y;
+  let pd = Math.sqrt(pdx*pdx + pdy*pdy);
+
+  if(pd < 20){
+    ball.vx += pdx * 0.1;
+    ball.vy += pdy * 0.1;
+  }
+
+  // AI TOUCH (difficulty etkisi)
+  let adx = ball.x - ai.x;
+  let ady = ball.y - ai.y;
+  let ad = Math.sqrt(adx*adx + ady*ady);
+
+  if(ad < 20){
+    let power = 0.05 + difficulty * 0.03;
+    ball.vx += adx * power;
+    ball.vy += ady * power;
+  }
+
+  // GOAL
   if(ball.y < goal.y + goal.h &&
      ball.x > goal.x &&
      ball.x < goal.x + goal.w){
@@ -151,13 +128,19 @@ function update(){
 function reset(){
   player.x = 200;
   player.y = 500;
-  ball.x = 220;
-  ball.y = 500;
+
+  ai.x = 200;
+  ai.y = 100;
+
+  ball.x = 200;
+  ball.y = 300;
+
   ball.vx = 0;
   ball.vy = 0;
 }
 
 function draw(){
+
   ctx.clearRect(0,0,400,600);
 
   ctx.strokeStyle="white";
@@ -166,19 +149,29 @@ function draw(){
   ctx.fillStyle="white";
   ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
 
+  // AI
+  ctx.fillStyle="red";
+  ctx.beginPath();
+  ctx.arc(ai.x,ai.y,ai.r,0,Math.PI*2);
+  ctx.fill();
+
+  // PLAYER
   ctx.fillStyle="blue";
   ctx.beginPath();
   ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
   ctx.fill();
 
+  // BALL
   ctx.fillStyle="white";
   ctx.beginPath();
   ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
   ctx.fill();
 
+  // SCORE + DIFFICULTY
   ctx.fillStyle="white";
-  ctx.font="20px Arial";
-  ctx.fillText("Score: "+score,10,590);
+  ctx.font="16px Arial";
+  ctx.fillText("Score: " + score, 10, 590);
+  ctx.fillText("Level: " + difficulty, 250, 590);
 }
 
 update();
