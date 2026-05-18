@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Smart AI Football</title>
+  <title>Football - Solid Base</title>
   <style>
     body { margin:0; background:#0a7a2f; overflow:hidden; }
     canvas { display:block; margin:auto; background:#0a7a2f; }
@@ -18,14 +18,20 @@ const ctx = c.getContext("2d");
 // PLAYER
 let player = { x:200, y:500, r:12 };
 
-// AI (smart)
-let ai = { x:200, y:120, r:12, speed:2.2 };
+// AI defender
+let ai = { x:200, y:150, r:12, speed:2.2 };
+
+// GOALKEEPER (SMART)
+let keeper = { x:200, y:30, speed:1.5 };
 
 // BALL
 let ball = { x:220, y:500, r:8, vx:0, vy:0 };
 
+// GOAL
 let goal = { x:150, y:10, w:100, h:20 };
+
 let score = 0;
+let difficulty = 1;
 
 let input = { x:0, y:0 };
 
@@ -42,7 +48,6 @@ document.addEventListener("keyup",()=>{
   input.y=0;
 });
 
-// distance helper
 function dist(a,b){
   let dx = a.x - b.x;
   let dy = a.y - b.y;
@@ -51,32 +56,31 @@ function dist(a,b){
 
 function update(){
 
-  // PLAYER MOVE
+  // PLAYER
   player.x += input.x * 4;
   player.y += input.y * 4;
 
-  // SMART AI LOGIC
-  let targetX, targetY;
-
-  // Eğer top yukarıdaysa (atak yap)
-  if(ball.y < 300){
-    targetX = ball.x;
-    targetY = ball.y;
-  }
-  // yoksa kendi yarı sahasını koru
-  else {
-    targetX = 200;
-    targetY = 120;
-  }
-
-  let dx = targetX - ai.x;
-  let dy = targetY - ai.y;
+  // AI DEFENDER (temel pozisyon)
+  let dx = ball.x - ai.x;
+  let dy = ball.y - ai.y;
   let d = Math.sqrt(dx*dx + dy*dy);
 
   ai.x += (dx/d) * ai.speed;
   ai.y += (dy/d) * ai.speed;
 
-  // BALL PHYSICS
+  // KEEPER AI (asıl upgrade)
+  let targetX = ball.x;
+
+  // sadece top kaleye yaklaşıyorsa aktif olur
+  if(ball.y < 250){
+    let diffSpeed = keeper.speed + difficulty * 0.5;
+
+    if(Math.abs(keeper.x - targetX) > 5){
+      keeper.x += (targetX - keeper.x) * 0.05 * diffSpeed;
+    }
+  }
+
+  // BALL
   ball.x += ball.vx;
   ball.y += ball.vy;
 
@@ -84,23 +88,27 @@ function update(){
   ball.vy *= 0.97;
 
   // PLAYER TOUCH
-  let pdx = ball.x - player.x;
-  let pdy = ball.y - player.y;
-  let pd = Math.sqrt(pdx*pdx + pdy*pdy);
-
+  let pd = dist(ball, player);
   if(pd < 20){
-    ball.vx += pdx * 0.1;
-    ball.vy += pdy * 0.1;
+    ball.vx += (ball.x - player.x) * 0.1;
+    ball.vy += (ball.y - player.y) * 0.1;
   }
 
-  // AI TOUCH (savunma + müdahale)
-  let adx = ball.x - ai.x;
-  let ady = ball.y - ai.y;
-  let ad = Math.sqrt(adx*adx + ady*ady);
-
+  // AI TOUCH
+  let ad = dist(ball, ai);
   if(ad < 20){
-    ball.vx += adx * 0.08;
-    ball.vy += ady * 0.08;
+    ball.vx += (ball.x - ai.x) * 0.06;
+    ball.vy += (ball.y - ai.y) * 0.06;
+  }
+
+  // KEEPER BLOCK
+  if(
+    ball.y < 40 &&
+    ball.x > keeper.x - 40 &&
+    ball.x < keeper.x + 40
+  ){
+    ball.vy *= -0.6;
+    ball.y += 10;
   }
 
   // GOAL
@@ -120,11 +128,12 @@ function reset(){
   player.y = 500;
 
   ai.x = 200;
-  ai.y = 120;
+  ai.y = 150;
+
+  keeper.x = 200;
 
   ball.x = 220;
   ball.y = 400;
-
   ball.vx = 0;
   ball.vy = 0;
 }
@@ -140,6 +149,10 @@ function draw(){
   // goal
   ctx.fillStyle="white";
   ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
+
+  // keeper
+  ctx.fillStyle="yellow";
+  ctx.fillRect(keeper.x-40, 20, 80, 10);
 
   // AI
   ctx.fillStyle="red";
@@ -159,7 +172,6 @@ function draw(){
   ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
   ctx.fill();
 
-  // SCORE
   ctx.fillStyle="white";
   ctx.font="16px Arial";
   ctx.fillText("Score: "+score,10,590);
