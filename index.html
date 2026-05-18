@@ -1,13 +1,51 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Football Ratings</title>
+  <title>Team Select Football</title>
   <style>
-    body { margin:0; background:#0a7a2f; overflow:hidden; }
-    canvas { display:block; margin:auto; background:#0a7a2f; }
+    body{
+      margin:0;
+      background:#0a7a2f;
+      font-family:Arial;
+      color:white;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      height:100vh;
+    }
+
+    #menu{
+      text-align:center;
+    }
+
+    button{
+      width:220px;
+      padding:10px;
+      margin:5px;
+      font-size:16px;
+      border:none;
+      border-radius:8px;
+    }
+
+    canvas{
+      display:none;
+      margin:auto;
+      background:#0a7a2f;
+    }
   </style>
 </head>
 <body>
+
+<div id="menu">
+  <h2>Takım Seç</h2>
+
+  <button onclick="startGame('GS')">Galatasaray</button>
+  <button onclick="startGame('FB')">Fenerbahçe</button>
+  <button onclick="startGame('BJK')">Beşiktaş</button>
+  <button onclick="startGame('TS')">Trabzonspor</button>
+  <button onclick="startGame('MANCITY')">Manchester City</button>
+  <button onclick="startGame('REAL')">Real Madrid</button>
+</div>
 
 <canvas id="game" width="400" height="600"></canvas>
 
@@ -15,27 +53,25 @@
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
 
-// PLAYER (ratingli)
-let player = {
-  x:200, y:500, r:12,
-  pace: 4.5,
-  shoot: 1.2,
-  control: 0.12
-};
+let playerTeam = "";
+let score = 0;
 
-// AI
-let ai = {
-  x:200, y:150, r:12,
-  pace: 2.3
-};
-
-// BALL
-let ball = { x:220, y:500, r:8, vx:0, vy:0 };
-
+let player = { x:200, y:500, r:12, pace:4 };
+let ai = { x:200, y:150, r:12, pace:2.2 };
+let ball = { x:220, y:400, r:8, vx:0, vy:0 };
 let goal = { x:150, y:10, w:100, h:20 };
 
-let score = 0;
 let input = { x:0, y:0 };
+
+function startGame(team){
+  playerTeam = team;
+
+  document.getElementById("menu").style.display = "none";
+  c.style.display = "block";
+
+  reset();
+  update();
+}
 
 // controls
 document.addEventListener("keydown",(e)=>{
@@ -51,18 +87,16 @@ document.addEventListener("keyup",()=>{
 });
 
 function dist(a,b){
-  let dx = a.x - b.x;
-  let dy = a.y - b.y;
-  return Math.sqrt(dx*dx + dy*dy);
+  return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
 }
 
 function update(){
 
-  // PLAYER MOVE (pace etkili)
+  // PLAYER MOVE
   player.x += input.x * player.pace;
   player.y += input.y * player.pace;
 
-  // AI chase
+  // AI
   let dx = ball.x - ai.x;
   let dy = ball.y - ai.y;
   let d = Math.sqrt(dx*dx + dy*dy);
@@ -70,31 +104,25 @@ function update(){
   ai.x += (dx/d) * ai.pace;
   ai.y += (dy/d) * ai.pace;
 
-  // BALL PHYSICS
+  // BALL
   ball.x += ball.vx;
   ball.y += ball.vy;
 
   ball.vx *= 0.97;
   ball.vy *= 0.97;
 
-  // PLAYER CONTROL (rating etkisi)
-  let pdx = ball.x - player.x;
-  let pdy = ball.y - player.y;
-  let pd = Math.sqrt(pdx*pdx + pdy*pdy);
-
+  // PLAYER TOUCH
+  let pd = dist(ball, player);
   if(pd < 20){
-    ball.vx += pdx * player.control;
-    ball.vy += pdy * player.control;
+    ball.vx += (ball.x - player.x) * 0.1;
+    ball.vy += (ball.y - player.y) * 0.1;
   }
 
   // AI TOUCH
-  let adx = ball.x - ai.x;
-  let ady = ball.y - ai.y;
-  let ad = Math.sqrt(adx*adx + ady*ady);
-
+  let ad = dist(ball, ai);
   if(ad < 20){
-    ball.vx += adx * 0.06;
-    ball.vy += ady * 0.06;
+    ball.vx += (ball.x - ai.x) * 0.06;
+    ball.vy += (ball.y - ai.y) * 0.06;
   }
 
   // GOAL
@@ -124,7 +152,6 @@ function reset(){
 }
 
 function draw(){
-
   ctx.clearRect(0,0,400,600);
 
   ctx.strokeStyle="white";
@@ -133,33 +160,26 @@ function draw(){
   ctx.fillStyle="white";
   ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
 
-  // AI
-  ctx.fillStyle="red";
-  ctx.beginPath();
-  ctx.arc(ai.x,ai.y,ai.r,0,Math.PI*2);
-  ctx.fill();
-
-  // PLAYER
   ctx.fillStyle="blue";
   ctx.beginPath();
   ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
   ctx.fill();
 
-  // BALL
+  ctx.fillStyle="red";
+  ctx.beginPath();
+  ctx.arc(ai.x,ai.y,ai.r,0,Math.PI*2);
+  ctx.fill();
+
   ctx.fillStyle="white";
   ctx.beginPath();
   ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
   ctx.fill();
 
-  // UI
   ctx.fillStyle="white";
-  ctx.font="16px Arial";
-  ctx.fillText("Score: "+score,10,590);
-
-  ctx.fillText("Pace: "+player.pace,250,590);
+  ctx.fillText("Team: " + playerTeam,10,590);
+  ctx.fillText("Score: " + score,120,590);
 }
 
-update();
 </script>
 
 </body>
