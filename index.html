@@ -1,116 +1,141 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Football with Goalkeeper</title>
+  <title>Football Shoot Power</title>
   <style>
     body { margin:0; background:#0a7a2f; overflow:hidden; }
     canvas { display:block; margin:auto; background:#0a7a2f; }
+
+    #shootBtn{
+      position:absolute;
+      bottom:40px;
+      right:40px;
+      width:90px;
+      height:90px;
+      border-radius:50%;
+      background:red;
+      color:white;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:bold;
+      user-select:none;
+    }
+
+    #powerBar{
+      position:absolute;
+      bottom:140px;
+      right:40px;
+      width:20px;
+      height:120px;
+      border:2px solid white;
+    }
+
+    #fill{
+      width:100%;
+      height:0%;
+      background:yellow;
+      position:absolute;
+      bottom:0;
+    }
   </style>
 </head>
 <body>
 
 <canvas id="game" width="400" height="600"></canvas>
 
+<div id="powerBar"><div id="fill"></div></div>
+<div id="shootBtn">SHOOT</div>
+
 <script>
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
 
-// PLAYER
 let player = { x:200, y:500, r:12 };
-
-// AI defender
-let ai = { x:200, y:150, r:12, speed:2 };
-
-// BALL
 let ball = { x:220, y:500, r:8, vx:0, vy:0 };
-
-// GOALKEEPER
-let keeper = { x:200, y:30, w:60, h:10, dir:1 };
-
-// GOAL
 let goal = { x:150, y:10, w:100, h:20 };
 
 let score = 0;
 
-// INPUT
-let input = { x:0, y:0 };
+// power system
+let power = 0;
+let charging = false;
+let direction = { x:0, y:-1 };
 
-document.addEventListener("keydown",(e)=>{
-  if(e.key==="ArrowRight") input.x=1;
-  if(e.key==="ArrowLeft") input.x=-1;
-  if(e.key==="ArrowUp") input.y=-1;
-  if(e.key==="ArrowDown") input.y=1;
+// touch control for direction (basit swipe)
+let startX, startY;
+
+document.addEventListener("touchstart",(e)=>{
+  startX = e.touches[0].clientX;
+  startY = e.touches[0].clientY;
 });
 
-document.addEventListener("keyup",()=>{
-  input.x=0;
-  input.y=0;
+document.addEventListener("touchend",(e)=>{
+  let dx = e.changedTouches[0].clientX - startX;
+  let dy = e.changedTouches[0].clientY - startY;
+
+  let len = Math.sqrt(dx*dx + dy*dy);
+  if(len > 10){
+    direction.x = dx / len;
+    direction.y = dy / len;
+  }
 });
+
+// shoot button hold
+let btn = document.getElementById("shootBtn");
+
+btn.addEventListener("touchstart", ()=>{
+  charging = true;
+});
+
+btn.addEventListener("touchend", ()=>{
+  charging = false;
+
+  if(distance(ball, player) < 30){
+    ball.vx += direction.x * power * 0.3;
+    ball.vy += direction.y * power * 0.3;
+  }
+
+  power = 0;
+});
+
+function distance(a,b){
+  let dx = a.x - b.x;
+  let dy = a.y - b.y;
+  return Math.sqrt(dx*dx + dy*dy);
+}
 
 function update(){
 
-  // PLAYER MOVE
-  player.x += input.x * 4;
-  player.y += input.y * 4;
-
-  // AI MOVE (defender)
-  let dx = ball.x - ai.x;
-  let dy = ball.y - ai.y;
+  // player follow ball lightly
+  let dx = ball.x - player.x;
+  let dy = ball.y - player.y;
   let d = Math.sqrt(dx*dx + dy*dy);
 
-  ai.x += (dx/d) * ai.speed;
-  ai.y += (dy/d) * ai.speed;
-
-  // KEEPER MOVE (kaleci sağ-sol gider)
-  keeper.x += keeper.dir * 2;
-
-  if(keeper.x < 140 || keeper.x > 260){
-    keeper.dir *= -1;
+  if(d < 20){
+    ball.vx += dx * 0.1;
+    ball.vy += dy * 0.1;
   }
 
-  // BALL PHYSICS
+  // power charging
+  if(charging){
+    power += 2;
+    if(power > 100) power = 100;
+  }
+
+  document.getElementById("fill").style.height = power + "%";
+
+  // ball physics
   ball.x += ball.vx;
   ball.y += ball.vy;
 
   ball.vx *= 0.97;
   ball.vy *= 0.97;
 
-  // PLAYER TOUCH
-  let pdx = ball.x - player.x;
-  let pdy = ball.y - player.y;
-  let pd = Math.sqrt(pdx*pdx + pdy*pdy);
-
-  if(pd < 20){
-    ball.vx += pdx * 0.1;
-    ball.vy += pdy * 0.1;
-  }
-
-  // AI TOUCH
-  let adx = ball.x - ai.x;
-  let ady = ball.y - ai.y;
-  let ad = Math.sqrt(adx*adx + ady*ady);
-
-  if(ad < 20){
-    ball.vx += adx * 0.05;
-    ball.vy += ady * 0.05;
-  }
-
-  // KEEPER BLOCK
-  if(
-    ball.y < keeper.y + keeper.h &&
-    ball.x > keeper.x - 30 &&
-    ball.x < keeper.x + 30
-  ){
-    ball.vy *= -1;
-    ball.y += 20;
-  }
-
-  // GOAL CHECK
-  if(
-    ball.y < goal.y + goal.h &&
-    ball.x > goal.x &&
-    ball.x < goal.x + goal.w
-  ){
+  // goal
+  if(ball.y < goal.y + goal.h &&
+     ball.x > goal.x &&
+     ball.x < goal.x + goal.w){
     score++;
     reset();
   }
@@ -123,50 +148,32 @@ function reset(){
   player.x = 200;
   player.y = 500;
 
-  ai.x = 200;
-  ai.y = 150;
-
   ball.x = 220;
-  ball.y = 400;
+  ball.y = 500;
+
   ball.vx = 0;
   ball.vy = 0;
 }
 
 function draw(){
-
   ctx.clearRect(0,0,400,600);
 
-  // field
   ctx.strokeStyle="white";
   ctx.strokeRect(10,10,380,580);
 
-  // goal
   ctx.fillStyle="white";
   ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
 
-  // keeper
-  ctx.fillStyle="yellow";
-  ctx.fillRect(keeper.x-30, keeper.y, 60, 10);
-
-  // AI
-  ctx.fillStyle="red";
-  ctx.beginPath();
-  ctx.arc(ai.x,ai.y,ai.r,0,Math.PI*2);
-  ctx.fill();
-
-  // player
   ctx.fillStyle="blue";
   ctx.beginPath();
   ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
   ctx.fill();
 
-  // ball
   ctx.fillStyle="white";
   ctx.beginPath();
   ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
   ctx.fill();
 
-  // score
   ctx.fillStyle="white";
   ctx.font="16px Arial";
   ctx.fillText("Score: "+score,10,590);
