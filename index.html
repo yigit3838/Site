@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Advanced Rating Football</title>
+  <title>Team Match</title>
   <style>
     body{margin:0;background:#0a7a2f;overflow:hidden;font-family:Arial;}
     canvas{display:block;margin:auto;background:#0a7a2f;}
@@ -15,29 +15,24 @@
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
 
-// PLAYER (ratingli artık net fark var)
-let player = {
-  x:200, y:500, r:12,
-  pace: 5.2,
-  shoot: 1.4,
-  control: 0.15
-};
+let input = {x:0,y:0};
 
-// AI
-let ai = {
-  x:200, y:150, r:12,
-  pace: 2.4
-};
+// TEAM A (senin takım)
+let player = {x:200,y:500,r:10,speed:4};
+let ally1  = {x:160,y:520,r:10,speed:3};
+let ally2  = {x:240,y:520,r:10,speed:3};
+
+// TEAM B (rakip)
+let enemy1 = {x:150,y:150,r:10,speed:2.5};
+let enemy2 = {x:250,y:150,r:10,speed:2.5};
 
 // BALL
-let ball = { x:220, y:400, r:8, vx:0, vy:0 };
+let ball = {x:200,y:300,r:7,vx:0,vy:0};
 
-let goal = { x:150, y:10, w:100, h:20 };
-
+let goal = {x:150,y:10,w:100,h:20};
 let score = 0;
-let input = { x:0, y:0 };
 
-// controls
+// CONTROLS
 document.addEventListener("keydown",(e)=>{
   if(e.key==="ArrowRight") input.x=1;
   if(e.key==="ArrowLeft") input.x=-1;
@@ -46,50 +41,51 @@ document.addEventListener("keydown",(e)=>{
 });
 
 document.addEventListener("keyup",()=>{
-  input.x=0;
-  input.y=0;
+  input.x=0; input.y=0;
 });
 
 function dist(a,b){
-  let dx = a.x - b.x;
-  let dy = a.y - b.y;
-  return Math.sqrt(dx*dx + dy*dy);
+  return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
+}
+
+function moveTowards(obj,target,speed){
+  let dx = target.x - obj.x;
+  let dy = target.y - obj.y;
+  let d = Math.sqrt(dx*dx+dy*dy);
+  if(d>0){
+    obj.x += (dx/d)*speed;
+    obj.y += (dy/d)*speed;
+  }
 }
 
 function update(){
 
-  // PLAYER MOVE (pace etkili)
-  player.x += input.x * player.pace;
-  player.y += input.y * player.pace;
+  // PLAYER CONTROL
+  player.x += input.x * player.speed;
+  player.y += input.y * player.speed;
 
-  // AI chase
-  let dx = ball.x - ai.x;
-  let dy = ball.y - ai.y;
-  let d = Math.sqrt(dx*dx + dy*dy);
+  // ALLY AI (topa gider)
+  moveTowards(ally1, ball, ally1.speed);
+  moveTowards(ally2, ball, ally2.speed);
 
-  ai.x += (dx/d) * ai.pace;
-  ai.y += (dy/d) * ai.pace;
+  // ENEMY AI
+  moveTowards(enemy1, ball, enemy1.speed);
+  moveTowards(enemy2, ball, enemy2.speed);
 
-  // BALL
+  // BALL PHYSICS
   ball.x += ball.vx;
   ball.y += ball.vy;
 
   ball.vx *= 0.97;
   ball.vy *= 0.97;
 
-  // PLAYER CONTROL (çok fark ettiriyor artık)
-  let pd = dist(ball, player);
-  if(pd < 22){
-    ball.vx += (ball.x - player.x) * player.control;
-    ball.vy += (ball.y - player.y) * player.control;
-  }
-
-  // AI TOUCH
-  let ad = dist(ball, ai);
-  if(ad < 20){
-    ball.vx += (ball.x - ai.x) * 0.06;
-    ball.vy += (ball.y - ai.y) * 0.06;
-  }
+  // PLAYER TOUCH
+  [player, ally1, ally2, enemy1, enemy2].forEach(p=>{
+    if(dist(ball,p)<15){
+      ball.vx += (ball.x - p.x)*0.08;
+      ball.vy += (ball.y - p.y)*0.08;
+    }
+  });
 
   // GOAL
   if(ball.y < goal.y + goal.h &&
@@ -104,54 +100,52 @@ function update(){
 }
 
 function reset(){
-  player.x = 200;
-  player.y = 500;
+  player.x=200; player.y=500;
+  ally1.x=160; ally1.y=520;
+  ally2.x=240; ally2.y=520;
 
-  ai.x = 200;
-  ai.y = 150;
+  enemy1.x=150; enemy1.y=150;
+  enemy2.x=250; enemy2.y=150;
 
-  ball.x = 220;
-  ball.y = 400;
-
-  ball.vx = 0;
-  ball.vy = 0;
+  ball.x=200; ball.y=300;
+  ball.vx=0; ball.vy=0;
 }
 
 function draw(){
 
   ctx.clearRect(0,0,400,600);
 
-  // field
   ctx.strokeStyle="white";
   ctx.strokeRect(10,10,380,580);
 
-  // goal
   ctx.fillStyle="white";
   ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
 
-  // player
+  // TEAM A
   ctx.fillStyle="blue";
-  ctx.beginPath();
-  ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
-  ctx.fill();
+  [player,ally1,ally2].forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fill();
+  });
 
-  // AI
+  // TEAM B
   ctx.fillStyle="red";
-  ctx.beginPath();
-  ctx.arc(ai.x,ai.y,ai.r,0,Math.PI*2);
-  ctx.fill();
+  [enemy1,enemy2].forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fill();
+  });
 
-  // ball
+  // BALL
   ctx.fillStyle="white";
   ctx.beginPath();
   ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
   ctx.fill();
 
-  // UI
+  // SCORE
   ctx.fillStyle="white";
-  ctx.fillText("Score: " + score,10,590);
-  ctx.fillText("Pace: " + player.pace.toFixed(1),120,590);
-  ctx.fillText("Control: " + player.control.toFixed(2),220,590);
+  ctx.fillText("Score: "+score,10,590);
 }
 
 update();
