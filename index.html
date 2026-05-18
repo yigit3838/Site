@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Team Match</title>
+  <title>Football Player System</title>
   <style>
     body{margin:0;background:#0a7a2f;overflow:hidden;font-family:Arial;}
     canvas{display:block;margin:auto;background:#0a7a2f;}
@@ -17,16 +17,23 @@ const ctx = c.getContext("2d");
 
 let input = {x:0,y:0};
 
-// TEAM A (senin takım)
-let player = {x:200,y:500,r:10,speed:4};
-let ally1  = {x:160,y:520,r:10,speed:3};
-let ally2  = {x:240,y:520,r:10,speed:3};
+// 🧍 PLAYER (özel karakter)
+let player = {
+  x:200, y:500, r:10,
+  name: "Player",
+  pace: 5.5,
+  shoot: 1.6,
+  control: 0.18
+};
 
-// TEAM B (rakip)
-let enemy1 = {x:150,y:150,r:10,speed:2.5};
-let enemy2 = {x:250,y:150,r:10,speed:2.5};
+// 🤖 AI PLAYER
+let ai = {
+  x:200, y:150, r:10,
+  pace: 3.0,
+  control: 0.08
+};
 
-// BALL
+// ⚽ BALL
 let ball = {x:200,y:300,r:7,vx:0,vy:0};
 
 let goal = {x:150,y:10,w:100,h:20};
@@ -48,46 +55,40 @@ function dist(a,b){
   return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
 }
 
-function moveTowards(obj,target,speed){
-  let dx = target.x - obj.x;
-  let dy = target.y - obj.y;
-  let d = Math.sqrt(dx*dx+dy*dy);
-  if(d>0){
-    obj.x += (dx/d)*speed;
-    obj.y += (dy/d)*speed;
-  }
-}
-
 function update(){
 
-  // PLAYER CONTROL
-  player.x += input.x * player.speed;
-  player.y += input.y * player.speed;
+  // 🧍 PLAYER MOVE (pace farkı)
+  player.x += input.x * player.pace;
+  player.y += input.y * player.pace;
 
-  // ALLY AI (topa gider)
-  moveTowards(ally1, ball, ally1.speed);
-  moveTowards(ally2, ball, ally2.speed);
+  // 🤖 AI MOVE (topa gider)
+  let dx = ball.x - ai.x;
+  let dy = ball.y - ai.y;
+  let d = Math.sqrt(dx*dx+dy*dy);
 
-  // ENEMY AI
-  moveTowards(enemy1, ball, enemy1.speed);
-  moveTowards(enemy2, ball, enemy2.speed);
+  ai.x += (dx/d) * ai.pace;
+  ai.y += (dy/d) * ai.pace;
 
-  // BALL PHYSICS
+  // ⚽ BALL
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  ball.vx *= 0.97;
-  ball.vy *= 0.97;
+  ball.vx *= 0.96;
+  ball.vy *= 0.96;
 
-  // PLAYER TOUCH
-  [player, ally1, ally2, enemy1, enemy2].forEach(p=>{
-    if(dist(ball,p)<15){
-      ball.vx += (ball.x - p.x)*0.08;
-      ball.vy += (ball.y - p.y)*0.08;
-    }
-  });
+  // 🧠 PLAYER TOUCH (control farkı burada)
+  if(dist(ball,player)<18){
+    ball.vx += (ball.x - player.x) * player.control;
+    ball.vy += (ball.y - player.y) * player.control;
+  }
 
-  // GOAL
+  // 🤖 AI TOUCH
+  if(dist(ball,ai)<18){
+    ball.vx += (ball.x - ai.x) * ai.control;
+    ball.vy += (ball.y - ai.y) * ai.control;
+  }
+
+  // ⚽ GOAL
   if(ball.y < goal.y + goal.h &&
      ball.x > goal.x &&
      ball.x < goal.x + goal.w){
@@ -101,12 +102,7 @@ function update(){
 
 function reset(){
   player.x=200; player.y=500;
-  ally1.x=160; ally1.y=520;
-  ally2.x=240; ally2.y=520;
-
-  enemy1.x=150; enemy1.y=150;
-  enemy2.x=250; enemy2.y=150;
-
+  ai.x=200; ai.y=150;
   ball.x=200; ball.y=300;
   ball.vx=0; ball.vy=0;
 }
@@ -121,21 +117,17 @@ function draw(){
   ctx.fillStyle="white";
   ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
 
-  // TEAM A
+  // PLAYER
   ctx.fillStyle="blue";
-  [player,ally1,ally2].forEach(p=>{
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-    ctx.fill();
-  });
+  ctx.beginPath();
+  ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
+  ctx.fill();
 
-  // TEAM B
+  // AI
   ctx.fillStyle="red";
-  [enemy1,enemy2].forEach(p=>{
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-    ctx.fill();
-  });
+  ctx.beginPath();
+  ctx.arc(ai.x,ai.y,ai.r,0,Math.PI*2);
+  ctx.fill();
 
   // BALL
   ctx.fillStyle="white";
@@ -143,9 +135,11 @@ function draw(){
   ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
   ctx.fill();
 
-  // SCORE
+  // UI
   ctx.fillStyle="white";
   ctx.fillText("Score: "+score,10,590);
+  ctx.fillText("Pace: "+player.pace.toFixed(1),120,590);
+  ctx.fillText("Control: "+player.control.toFixed(2),220,590);
 }
 
 update();
