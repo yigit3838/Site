@@ -1,32 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Football AI Difficulty</title>
+  <title>Football with Goalkeeper</title>
   <style>
     body { margin:0; background:#0a7a2f; overflow:hidden; }
     canvas { display:block; margin:auto; background:#0a7a2f; }
-
-    #ui{
-      position:absolute;
-      top:10px;
-      left:10px;
-      color:white;
-      font-family:Arial;
-    }
-
-    button{
-      margin:3px;
-      padding:8px;
-    }
   </style>
 </head>
 <body>
-
-<div id="ui">
-  <button onclick="setDifficulty(1)">Kolay</button>
-  <button onclick="setDifficulty(2)">Orta</button>
-  <button onclick="setDifficulty(3)">Zor</button>
-</div>
 
 <canvas id="game" width="400" height="600"></canvas>
 
@@ -37,47 +18,42 @@ const ctx = c.getContext("2d");
 // PLAYER
 let player = { x:200, y:500, r:12 };
 
-// AI
-let ai = { x:200, y:100, r:12, speed:1.5 };
+// AI defender
+let ai = { x:200, y:150, r:12, speed:2 };
 
 // BALL
-let ball = { x:220, y:300, r:8, vx:0, vy:0 };
+let ball = { x:220, y:500, r:8, vx:0, vy:0 };
 
+// GOALKEEPER
+let keeper = { x:200, y:30, w:60, h:10, dir:1 };
+
+// GOAL
 let goal = { x:150, y:10, w:100, h:20 };
+
 let score = 0;
 
-let difficulty = 1;
-
-function setDifficulty(level){
-  difficulty = level;
-
-  if(level === 1) ai.speed = 1.5;
-  if(level === 2) ai.speed = 2.5;
-  if(level === 3) ai.speed = 4;
-}
-
-// input
+// INPUT
 let input = { x:0, y:0 };
 
 document.addEventListener("keydown",(e)=>{
-  if(e.key==="ArrowRight") input.x = 1;
-  if(e.key==="ArrowLeft") input.x = -1;
-  if(e.key==="ArrowUp") input.y = -1;
-  if(e.key==="ArrowDown") input.y = 1;
+  if(e.key==="ArrowRight") input.x=1;
+  if(e.key==="ArrowLeft") input.x=-1;
+  if(e.key==="ArrowUp") input.y=-1;
+  if(e.key==="ArrowDown") input.y=1;
 });
 
 document.addEventListener("keyup",()=>{
-  input.x = 0;
-  input.y = 0;
+  input.x=0;
+  input.y=0;
 });
 
 function update(){
 
-  // PLAYER
+  // PLAYER MOVE
   player.x += input.x * 4;
   player.y += input.y * 4;
 
-  // AI (zorluğa göre hız)
+  // AI MOVE (defender)
   let dx = ball.x - ai.x;
   let dy = ball.y - ai.y;
   let d = Math.sqrt(dx*dx + dy*dy);
@@ -85,7 +61,14 @@ function update(){
   ai.x += (dx/d) * ai.speed;
   ai.y += (dy/d) * ai.speed;
 
-  // BALL
+  // KEEPER MOVE (kaleci sağ-sol gider)
+  keeper.x += keeper.dir * 2;
+
+  if(keeper.x < 140 || keeper.x > 260){
+    keeper.dir *= -1;
+  }
+
+  // BALL PHYSICS
   ball.x += ball.vx;
   ball.y += ball.vy;
 
@@ -102,21 +85,32 @@ function update(){
     ball.vy += pdy * 0.1;
   }
 
-  // AI TOUCH (difficulty etkisi)
+  // AI TOUCH
   let adx = ball.x - ai.x;
   let ady = ball.y - ai.y;
   let ad = Math.sqrt(adx*adx + ady*ady);
 
   if(ad < 20){
-    let power = 0.05 + difficulty * 0.03;
-    ball.vx += adx * power;
-    ball.vy += ady * power;
+    ball.vx += adx * 0.05;
+    ball.vy += ady * 0.05;
   }
 
-  // GOAL
-  if(ball.y < goal.y + goal.h &&
-     ball.x > goal.x &&
-     ball.x < goal.x + goal.w){
+  // KEEPER BLOCK
+  if(
+    ball.y < keeper.y + keeper.h &&
+    ball.x > keeper.x - 30 &&
+    ball.x < keeper.x + 30
+  ){
+    ball.vy *= -1;
+    ball.y += 20;
+  }
+
+  // GOAL CHECK
+  if(
+    ball.y < goal.y + goal.h &&
+    ball.x > goal.x &&
+    ball.x < goal.x + goal.w
+  ){
     score++;
     reset();
   }
@@ -130,11 +124,10 @@ function reset(){
   player.y = 500;
 
   ai.x = 200;
-  ai.y = 100;
+  ai.y = 150;
 
-  ball.x = 200;
-  ball.y = 300;
-
+  ball.x = 220;
+  ball.y = 400;
   ball.vx = 0;
   ball.vy = 0;
 }
@@ -143,11 +136,17 @@ function draw(){
 
   ctx.clearRect(0,0,400,600);
 
+  // field
   ctx.strokeStyle="white";
   ctx.strokeRect(10,10,380,580);
 
+  // goal
   ctx.fillStyle="white";
   ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
+
+  // keeper
+  ctx.fillStyle="yellow";
+  ctx.fillRect(keeper.x-30, keeper.y, 60, 10);
 
   // AI
   ctx.fillStyle="red";
@@ -155,23 +154,22 @@ function draw(){
   ctx.arc(ai.x,ai.y,ai.r,0,Math.PI*2);
   ctx.fill();
 
-  // PLAYER
+  // player
   ctx.fillStyle="blue";
   ctx.beginPath();
   ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
   ctx.fill();
 
-  // BALL
+  // ball
   ctx.fillStyle="white";
   ctx.beginPath();
   ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
   ctx.fill();
 
-  // SCORE + DIFFICULTY
+  // score
   ctx.fillStyle="white";
   ctx.font="16px Arial";
-  ctx.fillText("Score: " + score, 10, 590);
-  ctx.fillText("Level: " + difficulty, 250, 590);
+  ctx.fillText("Score: "+score,10,590);
 }
 
 update();
